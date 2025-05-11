@@ -1,4 +1,5 @@
 const express = require("express");
+const bcrypt = require("bcrypt");
 const cors = require("cors");
 const app = express();
 
@@ -12,15 +13,24 @@ app.get("/api", (req, res) => {
 });
 
 app.post("/api/login", async (req, res) => {
-  console.log("Route /api/login hit");
-
-  const { username } = req.body;
-  try {
-    const data = await login(username);
-    res.status(200).json({ success: true, data });
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Login failed" });
-  }
+  const { username, password } = req.body;
+  login(username)
+    .then((response) => {
+      return Promise.all([
+        bcrypt.compare(password, response.password),
+        response.user_id,
+      ]);
+    })
+    .then(([verification, user_id]) => {
+      if (verification) {
+        res.status(200).send({ user_id });
+      } else {
+        res.status(400).send({ err: "password incorrect" });
+      }
+    })
+    .catch((err) => {
+      res.status(500).send({ msg: "internal server error" });
+    });
 });
 
 module.exports = app;
